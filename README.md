@@ -5,7 +5,7 @@ Test project on flutter framework
 
 Для входа в приложение создаем модель данных ответа с использованием freezed. https://pub.dev/packages/freezed
 
-```flutter
+```dart
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'login_model.freezed.dart';
@@ -24,7 +24,7 @@ class LoginModel with _$LoginModel {
 
 ```
 В сгенерированном файле login_model.g.dart нужно исправить имена полей аналогично с файлом json
-```flutter
+```dart
 
 // **************************************************************************
 // JsonSerializableGenerator
@@ -37,7 +37,7 @@ class LoginModel with _$LoginModel {
 Создаем network manager. Воспользуемся библиотекой dio. Настраиваем автообновление токена, и logout.
 
 
-```flutter
+```dart
 import 'package:dio/dio.dart';
 class DioProvider {
   Dio init() {
@@ -75,7 +75,7 @@ class DioProvider {
 ```
 Создаем функцию записи получения токенов и записываем их в безопасное хронилище. 
 
-```flutter
+```dart
 Future<bool> loginIn(
       String username, String password, BuildContext context) async {
     final dio = init();
