@@ -1,16 +1,94 @@
-# task_manager
+# Task Manager
+Test project on flutter framework
 
-A new Flutter project.
+### Login
 
-## Getting Started
+Для входа в приложение создаем модель данных ответа с использованием freezed. https://pub.dev/packages/freezed
 
-This project is a starting point for a Flutter application.
+```flutter
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-A few resources to get you started if this is your first Flutter project:
+part 'login_model.freezed.dart';
+part 'login_model.g.dart';
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+@freezed
+class LoginModel with _$LoginModel {
+  const factory LoginModel({
+    required String accessToken,
+    required String refreshToken,
+  }) = _LoginModel;
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+  factory LoginModel.fromJson(Map<String, dynamic> json) =>
+      _$LoginModelFromJson(json);
+}
+
+```
+В сгенерированном файле login_model.g.dart нужно исправить имена полей аналогично с файлом json
+```flutter
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+      accessToken: json['access_token'] as String,
+      refreshToken: json['refresh_token'] as String,
+
+```
+Создаем network manager. Воспользуемся библиотекой dio. Настраиваем автообновление токена, и logout.
+
+
+```flutter
+import 'package:dio/dio.dart';
+class DioProvider {
+  Dio init() {
+    Dio dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        var access = await storage.read(key: 'accessToken');
+        options.headers['Authorization'] = 'Bearer $access';
+
+        return handler.next(options);
+      },
+      onError: (error, handler) async {
+        debugPrint(error.error.toString());
+        if (error.response?.statusCode == 401) {
+          final data = await refreshToken();
+          final accessToken = data.accessToken;
+          error.requestOptions.headers['Authorization'] = 'Bearer $accessToken';
+
+          return handler.resolve(await dio.fetch(error.requestOptions));
+        } else if (error.response?.statusCode == 500) {
+          storage.delete(key: 'accessToken');
+          storage.delete(key: 'refreshToken');
+          _router.pushReplacement('/login');
+        } else {
+          debugPrint(error.error.toString());
+        }
+        handler.next(error);
+      },
+    ));
+    dio.options.baseUrl = 'https://test-mobile.estesis.tech/api/v1/';
+
+    return dio;
+  }
+
+```
+Создаем функцию записи получения токенов и записываем их в безопасное хронилище. 
+
+```flutter
+Future<bool> loginIn(
+      String username, String password, BuildContext context) async {
+    final dio = init();
+    dio.options.headers['Content-Type'] = Headers.formUrlEncodedContentType;
+    Response<dynamic> response = await dio
+        .post('login', data: {'username': username, 'password': password});
+
+    final data = LoginModel.fromJson(response.data);
+
+    storage.write(key: 'refreshToken', value: data.refreshToken);
+    storage.write(key: 'accessToken', value: data.accessToken);
+
+    context.pushReplacement('/home');
+    return false;
+  }
+```
