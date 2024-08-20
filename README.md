@@ -148,7 +148,7 @@ Future<TasksModel> getTasks(GetTasksRef ref) async {
 }
 ```
 
-С помощью утилиты безопасного монипулирования асинхронными данными AsyncValue(https://pub.dev/documentation/riverpod/latest/riverpod/AsyncValue-class.html) показываем необходимый виджет.
+С помощью утилиты безопасного монипулирования асинхронными данными AsyncValue(https://pub.dev/documentation/riverpod/latest/riverpod/AsyncValue-class.html) отслеживаем состояние загрузки и показываем необходимый виджет.
 
 ```dart
 AsyncValue<TasksModel> tasks(WidgetRef ref) => ref.watch(getTasksProvider);
