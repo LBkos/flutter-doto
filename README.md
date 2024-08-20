@@ -34,8 +34,7 @@ class LoginModel with _$LoginModel {
       refreshToken: json['refresh_token'] as String,
 
 ```
-Создаем network manager. Воспользуемся библиотекой dio. Настраиваем автообновление токена, и logout.
-
+Создаем network manager. Воспользуемся библиотекой dio(https://pub.dev/packages/dio). Настраиваем автообновление токена, и logout.
 
 ```dart
 import 'package:dio/dio.dart';
@@ -73,7 +72,7 @@ class DioProvider {
   }
 
 ```
-Создаем функцию записи получения токенов и записываем их в безопасное хронилище. 
+Создаем функцию записи получения токенов и записываем их в FlutterSecureStorage. https://pub.dev/packages/flutter_secure_storage 
 
 ```dart
 Future<bool> loginIn(
@@ -91,4 +90,78 @@ Future<bool> loginIn(
     context.pushReplacement('/home');
     return false;
   }
+```
+
+Создаем provider для монипуляции данных о задачах.
+
+```dart
+class TodoList extends Notifier<List<Task>> {
+  @override
+  List<Task> build() {
+    final tasks = ref.read(getTasksProvider);
+    return tasks.value?.items ?? [];
+  }
+
+  void delete(String id) {
+    final result = state.where((element) => element.sid != id);
+    state = [...result];
+    DioProvider().deleteTask(id);
+  }
+
+  void toggle(String id) {
+    final dio = DioProvider();
+    state = [
+      for (final task in state)
+        if (task.sid == id)
+          Task(
+              sid: id,
+              isDone: !task.isDone,
+              title: task.title,
+              text: task.text,
+              finishAt: task.finishAt,
+              priority: task.priority,
+              tag: task.tag,
+              createdAt: task.createdAt)
+        else
+          task,
+    ];
+    // print(state.firstWhere((task) => task.sid == id));
+    dio.changeTask(state.firstWhere((task) => task.sid == id));
+  }
+}
+
+final todosNotifierProvider =
+    NotifierProvider<TodoList, List<Task>>(TodoList.new);
+
+```
+
+Получаем данные о задачах с помощью riverpod(https://pub.dev/packages/riverpod)
+
+```dart
+@riverpod
+Future<TasksModel> getTasks(GetTasksRef ref) async {
+  final dio = DioProvider().init();
+  final response =
+      await dio.get('/tasks', queryParameters: {'limit': '50', 'offset': '0'});
+
+  return TasksModel.fromJson(response.data);
+}
+```
+
+С помощью утилиты безопасного монипулирования асинхронными данными AsyncValue(https://pub.dev/documentation/riverpod/latest/riverpod/AsyncValue-class.html) показываем необходимый виджет.
+
+```dart
+AsyncValue<TasksModel> tasks(WidgetRef ref) => ref.watch(getTasksProvider);
+
+Container(
+                  child: switch (widget.tasks(ref)) {
+                    AsyncLoading() => const Padding(
+                        padding: EdgeInsets.only(top: 40),
+                        child: CenteredProgressView(),
+                      ),
+                    AsyncData() => const TaskList(),
+                    AsyncError() => const Text('Oops, something happened'),
+                    AsyncValue<TasksModel>() => throw UnimplementedError(),
+                  },
+                )
 ```
